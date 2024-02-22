@@ -12,31 +12,31 @@
 #include <notification/notification_messages.h>
 #include "blackhat_app_icons.h"
 
-#define TAG "Skeleton"
+#define TAG "Blackhat"
 
 // Change this to BACKLIGHT_AUTO if you don't want the backlight to be continuously on.
 #define BACKLIGHT_ON 1
 
 // Our application menu has 3 items.  You can add more items if you want.
 typedef enum {
-    SkeletonSubmenuIndexConfigure,
-    SkeletonSubmenuIndexGame,
-    SkeletonSubmenuIndexAbout,
-} SkeletonSubmenuIndex;
+    BlackhatSubmenuIndexConfigure,
+    BlackhatSubmenuIndexGame,
+    BlackhatSubmenuIndexAbout,
+} BlackhatSubmenuIndex;
 
 // Each view is a screen we show the user.
 typedef enum {
-    SkeletonViewSubmenu, // The menu when the app starts
-    SkeletonViewTextInput, // Input for configuring text settings
-    SkeletonViewConfigure, // The configuration screen
-    SkeletonViewGame, // The main screen
-    SkeletonViewAbout, // The about screen with directions, link to social channel, etc.
-} SkeletonView;
+    BlackhatViewSubmenu, // The menu when the app starts
+    BlackhatViewTextInput, // Input for configuring text settings
+    BlackhatViewConfigure, // The configuration screen
+    BlackhatViewGame, // The main screen
+    BlackhatViewAbout, // The about screen with directions, link to social channel, etc.
+} BlackhatView;
 
 typedef enum {
-    SkeletonEventIdRedrawScreen = 0, // Custom event to redraw the screen
-    SkeletonEventIdOkPressed = 42, // Custom event to process OK button getting pressed down
-} SkeletonEventId;
+    BlackhatEventIdRedrawScreen = 0, // Custom event to redraw the screen
+    BlackhatEventIdOkPressed = 42, // Custom event to process OK button getting pressed down
+} BlackhatEventId;
 
 typedef struct {
     ViewDispatcher* view_dispatcher; // Switches between our views
@@ -53,7 +53,7 @@ typedef struct {
     uint32_t temp_buffer_size; // Size of temporary buffer
 
     FuriTimer* timer; // Timer for redrawing the screen
-} SkeletonApp;
+} BlackhatApp;
 
 enum {
 	SSID = 0,
@@ -65,7 +65,7 @@ typedef struct {
     uint32_t setting_1_index; // The team color setting index
     FuriString* setting[ENUM_LEN]; // The name setting
     uint8_t x; // The x coordinate
-} SkeletonGameModel;
+} BlackhatGameModel;
 
 /**
  * @brief      Callback for exiting the application.
@@ -88,7 +88,7 @@ static uint32_t blackhat_navigation_exit_callback(void* _context) {
 */
 static uint32_t blackhat_navigation_submenu_callback(void* _context) {
     UNUSED(_context);
-    return SkeletonViewSubmenu;
+    return BlackhatViewSubmenu;
 }
 
 /**
@@ -100,26 +100,26 @@ static uint32_t blackhat_navigation_submenu_callback(void* _context) {
 */
 static uint32_t blackhat_navigation_configure_callback(void* _context) {
     UNUSED(_context);
-    return SkeletonViewConfigure;
+    return BlackhatViewConfigure;
 }
 
 /**
  * @brief      Handle submenu item selection.
  * @details    This function is called when user selects an item from the submenu.
- * @param      context  The context - SkeletonApp object.
- * @param      index     The SkeletonSubmenuIndex item that was clicked.
+ * @param      context  The context - BlackhatApp object.
+ * @param      index     The BlackhatSubmenuIndex item that was clicked.
 */
 static void blackhat_submenu_callback(void* context, uint32_t index) {
-    SkeletonApp* app = (SkeletonApp*)context;
+    BlackhatApp* app = (BlackhatApp*)context;
     switch(index) {
-    case SkeletonSubmenuIndexConfigure:
-        view_dispatcher_switch_to_view(app->view_dispatcher, SkeletonViewConfigure);
+    case BlackhatSubmenuIndexConfigure:
+        view_dispatcher_switch_to_view(app->view_dispatcher, BlackhatViewConfigure);
         break;
-    case SkeletonSubmenuIndexGame:
-        view_dispatcher_switch_to_view(app->view_dispatcher, SkeletonViewGame);
+    case BlackhatSubmenuIndexGame:
+        view_dispatcher_switch_to_view(app->view_dispatcher, BlackhatViewGame);
         break;
-    case SkeletonSubmenuIndexAbout:
-        view_dispatcher_switch_to_view(app->view_dispatcher, SkeletonViewAbout);
+    case BlackhatSubmenuIndexAbout:
+        view_dispatcher_switch_to_view(app->view_dispatcher, BlackhatViewAbout);
         break;
     default:
         break;
@@ -132,10 +132,10 @@ static uint8_t setting_1_values[] = {1, 2};
 static char* setting_1_names[] = {"OFF", "ON"};
 static void blackhat_setting_1_change(VariableItem* item) {
 	// FURI_LOG_E(TAG, "Hello");
-    SkeletonApp* app = variable_item_get_context(item);
+    BlackhatApp* app = variable_item_get_context(item);
     uint8_t index = variable_item_get_current_value_index(item);
     variable_item_set_current_value_text(item, setting_1_names[index]);
-    SkeletonGameModel* model = view_get_model(app->view_game);
+    BlackhatGameModel* model = view_get_model(app->view_game);
     model->setting_1_index = index;
 }
 
@@ -143,47 +143,47 @@ static const char* setting_2_config_label = "Target SSID";
 static const char* setting_2_entry_text = "Enter SSID";
 static const char* setting_2_default_value = "TunaWiFi";
 static void blackhat_setting_2_text_updated(void* context) {
-    SkeletonApp* app = (SkeletonApp*)context;
+    BlackhatApp* app = (BlackhatApp*)context;
     bool redraw = true;
     with_view_model(
         app->view_game,
-        SkeletonGameModel * model,
+        BlackhatGameModel * model,
         {
             furi_string_set(model->setting[SSID], app->temp_buffer);
             variable_item_set_current_value_text(
                 app->setting_2_item, furi_string_get_cstr(model->setting[SSID]));
         },
         redraw);
-    view_dispatcher_switch_to_view(app->view_dispatcher, SkeletonViewConfigure);
+    view_dispatcher_switch_to_view(app->view_dispatcher, BlackhatViewConfigure);
 }
 
 static const char* setting_3_config_label = "Target SSID PW";
 static const char* setting_3_entry_text = "Enter SSID PW";
 static const char* setting_3_default_value = "password1234";
 static void blackhat_setting_3_text_updated(void* context) {
-    SkeletonApp* app = (SkeletonApp*)context;
+    BlackhatApp* app = (BlackhatApp*)context;
     bool redraw = true;
     with_view_model(
         app->view_game,
-        SkeletonGameModel * model,
+        BlackhatGameModel * model,
         {
             furi_string_set(model->setting[PASS], app->temp_buffer);
             variable_item_set_current_value_text(
                 app->setting_3_item, furi_string_get_cstr(model->setting[PASS]));
         },
         redraw);
-    view_dispatcher_switch_to_view(app->view_dispatcher, SkeletonViewConfigure);
+    view_dispatcher_switch_to_view(app->view_dispatcher, BlackhatViewConfigure);
 }
 
 /**
  * @brief      Callback when item in configuration screen is clicked.
  * @details    This function is called when user clicks OK on an item in the configuration screen.
  *            If the item clicked is our text field then we switch to the text input screen.
- * @param      context  The context - SkeletonApp object.
+ * @param      context  The context - BlackhatApp object.
  * @param      index - The index of the item that was clicked.
 */
 static void blackhat_setting_item_clicked(void* context, uint32_t index) {
-    SkeletonApp* app = (SkeletonApp*)context;
+    BlackhatApp* app = (BlackhatApp*)context;
 
     // Our configuration UI has the 2nd item as a text field.
     if(index == 1 || index == 2) {
@@ -198,7 +198,7 @@ static void blackhat_setting_item_clicked(void* context, uint32_t index) {
         bool redraw = false;
         with_view_model(
             app->view_game,
-            SkeletonGameModel * model,
+            BlackhatGameModel * model,
             {
                 strncpy(
                     app->temp_buffer,
@@ -232,7 +232,7 @@ static void blackhat_setting_item_clicked(void* context, uint32_t index) {
             text_input_get_view(app->text_input), blackhat_navigation_configure_callback);
 
         // Show text input dialog.
-        view_dispatcher_switch_to_view(app->view_dispatcher, SkeletonViewTextInput);
+        view_dispatcher_switch_to_view(app->view_dispatcher, BlackhatViewTextInput);
     }
 }
 
@@ -243,7 +243,7 @@ static void blackhat_setting_item_clicked(void* context, uint32_t index) {
  * @param      model   The model - MyModel object.
 */
 static void blackhat_view_game_draw_callback(Canvas* canvas, void* model) {
-    SkeletonGameModel* my_model = (SkeletonGameModel*)model;
+    BlackhatGameModel* my_model = (BlackhatGameModel*)model;
     canvas_draw_icon(canvas, my_model->x, 20, &I_glyph_1_14x40);
     canvas_draw_str(canvas, 1, 10, "LEFT/RIGHT to change x");
     FuriString* xstr = furi_string_alloc();
@@ -265,22 +265,22 @@ static void blackhat_view_game_draw_callback(Canvas* canvas, void* model) {
 /**
  * @brief      Callback for timer elapsed.
  * @details    This function is called when the timer is elapsed.  We use this to queue a redraw event.
- * @param      context  The context - SkeletonApp object.
+ * @param      context  The context - BlackhatApp object.
 */
 static void blackhat_view_game_timer_callback(void* context) {
-    SkeletonApp* app = (SkeletonApp*)context;
-    view_dispatcher_send_custom_event(app->view_dispatcher, SkeletonEventIdRedrawScreen);
+    BlackhatApp* app = (BlackhatApp*)context;
+    view_dispatcher_send_custom_event(app->view_dispatcher, BlackhatEventIdRedrawScreen);
 }
 
 /**
  * @brief      Callback when the user starts the game screen.
  * @details    This function is called when the user enters the game screen.  We start a timer to
  *           redraw the screen periodically (so the random number is refreshed).
- * @param      context  The context - SkeletonApp object.
+ * @param      context  The context - BlackhatApp object.
 */
 static void blackhat_view_game_enter_callback(void* context) {
     uint32_t period = furi_ms_to_ticks(200);
-    SkeletonApp* app = (SkeletonApp*)context;
+    BlackhatApp* app = (BlackhatApp*)context;
     furi_assert(app->timer == NULL);
     app->timer =
         furi_timer_alloc(blackhat_view_game_timer_callback, FuriTimerTypePeriodic, context);
@@ -290,10 +290,10 @@ static void blackhat_view_game_enter_callback(void* context) {
 /**
  * @brief      Callback when the user exits the game screen.
  * @details    This function is called when the user exits the game screen.  We stop the timer.
- * @param      context  The context - SkeletonApp object.
+ * @param      context  The context - BlackhatApp object.
 */
 static void blackhat_view_game_exit_callback(void* context) {
-    SkeletonApp* app = (SkeletonApp*)context;
+    BlackhatApp* app = (BlackhatApp*)context;
     furi_timer_stop(app->timer);
     furi_timer_free(app->timer);
     app->timer = NULL;
@@ -302,28 +302,28 @@ static void blackhat_view_game_exit_callback(void* context) {
 /**
  * @brief      Callback for custom events.
  * @details    This function is called when a custom event is sent to the view dispatcher.
- * @param      event    The event id - SkeletonEventId value.
- * @param      context  The context - SkeletonApp object.
+ * @param      event    The event id - BlackhatEventId value.
+ * @param      context  The context - BlackhatApp object.
 */
 static bool blackhat_view_game_custom_event_callback(uint32_t event, void* context) {
-    SkeletonApp* app = (SkeletonApp*)context;
+    BlackhatApp* app = (BlackhatApp*)context;
     switch(event) {
-    case SkeletonEventIdRedrawScreen:
+    case BlackhatEventIdRedrawScreen:
         // Redraw screen by passing true to last parameter of with_view_model.
         {
             bool redraw = true;
             with_view_model(
-                app->view_game, SkeletonGameModel * _model, { UNUSED(_model); }, redraw);
+                app->view_game, BlackhatGameModel * _model, { UNUSED(_model); }, redraw);
             return true;
         }
-    case SkeletonEventIdOkPressed:
+    case BlackhatEventIdOkPressed:
         // Process the OK button.  We play a tone based on the x coordinate.
         if(furi_hal_speaker_acquire(500)) {
             float frequency;
             bool redraw = false;
             with_view_model(
                 app->view_game,
-                SkeletonGameModel * model,
+                BlackhatGameModel * model,
                 { frequency = model->x * 100 + 100; },
                 redraw);
             furi_hal_speaker_start(frequency, 1.0);
@@ -341,18 +341,18 @@ static bool blackhat_view_game_custom_event_callback(uint32_t event, void* conte
  * @brief      Callback for game screen input.
  * @details    This function is called when the user presses a button while on the game screen.
  * @param      event    The event - InputEvent object.
- * @param      context  The context - SkeletonApp object.
+ * @param      context  The context - BlackhatApp object.
  * @return     true if the event was handled, false otherwise.
 */
 static bool blackhat_view_game_input_callback(InputEvent* event, void* context) {
-    SkeletonApp* app = (SkeletonApp*)context;
+    BlackhatApp* app = (BlackhatApp*)context;
     if(event->type == InputTypeShort) {
         if(event->key == InputKeyLeft) {
             // Left button clicked, reduce x coordinate.
             bool redraw = true;
             with_view_model(
                 app->view_game,
-                SkeletonGameModel * model,
+                BlackhatGameModel * model,
                 {
                     if(model->x > 0) {
                         model->x--;
@@ -364,7 +364,7 @@ static bool blackhat_view_game_input_callback(InputEvent* event, void* context) 
             bool redraw = true;
             with_view_model(
                 app->view_game,
-                SkeletonGameModel * model,
+                BlackhatGameModel * model,
                 {
                     // Should we have some maximum value?
                     model->x++;
@@ -374,9 +374,9 @@ static bool blackhat_view_game_input_callback(InputEvent* event, void* context) 
     } else if(event->type == InputTypePress) {
         if(event->key == InputKeyOk) {
             // We choose to send a custom event when user presses OK button.  blackhat_custom_event_callback will
-            // handle our SkeletonEventIdOkPressed event.  We could have just put the code from
+            // handle our BlackhatEventIdOkPressed event.  We could have just put the code from
             // blackhat_custom_event_callback here, it's a matter of preference.
-            view_dispatcher_send_custom_event(app->view_dispatcher, SkeletonEventIdOkPressed);
+            view_dispatcher_send_custom_event(app->view_dispatcher, BlackhatEventIdOkPressed);
             return true;
         }
     }
@@ -387,10 +387,10 @@ static bool blackhat_view_game_input_callback(InputEvent* event, void* context) 
 /**
  * @brief      Allocate the blackhat application.
  * @details    This function allocates the blackhat application resources.
- * @return     SkeletonApp object.
+ * @return     BlackhatApp object.
 */
-static SkeletonApp* blackhat_app_alloc() {
-    SkeletonApp* app = (SkeletonApp*)malloc(sizeof(SkeletonApp));
+static BlackhatApp* blackhat_app_alloc() {
+    BlackhatApp* app = (BlackhatApp*)malloc(sizeof(BlackhatApp));
 
     Gui* gui = furi_record_open(RECORD_GUI);
 
@@ -401,25 +401,25 @@ static SkeletonApp* blackhat_app_alloc() {
 
     app->submenu = submenu_alloc();
     submenu_add_item(
-        app->submenu, "Config", SkeletonSubmenuIndexConfigure, blackhat_submenu_callback, app);
+        app->submenu, "Config", BlackhatSubmenuIndexConfigure, blackhat_submenu_callback, app);
 
     submenu_add_item(
-        app->submenu, "Run Evil Twin", SkeletonSubmenuIndexGame, blackhat_submenu_callback, app);
+        app->submenu, "Run Evil Twin", BlackhatSubmenuIndexGame, blackhat_submenu_callback, app);
 
     submenu_add_item(
-         app->submenu, "Run Evil Portal", SkeletonSubmenuIndexAbout, blackhat_submenu_callback, app);
+         app->submenu, "Run Evil Portal", BlackhatSubmenuIndexAbout, blackhat_submenu_callback, app);
 
     view_set_previous_callback(submenu_get_view(app->submenu), blackhat_navigation_exit_callback);
 
     view_dispatcher_add_view(
-        app->view_dispatcher, SkeletonViewSubmenu, submenu_get_view(app->submenu));
+        app->view_dispatcher, BlackhatViewSubmenu, submenu_get_view(app->submenu));
 
-    view_dispatcher_switch_to_view(app->view_dispatcher, SkeletonViewSubmenu);
+    view_dispatcher_switch_to_view(app->view_dispatcher, BlackhatViewSubmenu);
 
     app->text_input = text_input_alloc();
 
     view_dispatcher_add_view(
-        app->view_dispatcher, SkeletonViewTextInput, text_input_get_view(app->text_input));
+        app->view_dispatcher, BlackhatViewTextInput, text_input_get_view(app->text_input));
 
     app->temp_buffer_size = 32;
     app->temp_buffer = (char*)malloc(app->temp_buffer_size);
@@ -464,7 +464,7 @@ static SkeletonApp* blackhat_app_alloc() {
 
     view_dispatcher_add_view(
         app->view_dispatcher,
-        SkeletonViewConfigure,
+        BlackhatViewConfigure,
         variable_item_list_get_view(app->variable_item_list_config));
 
     app->view_game = view_alloc();
@@ -475,14 +475,14 @@ static SkeletonApp* blackhat_app_alloc() {
     view_set_exit_callback(app->view_game, blackhat_view_game_exit_callback);
     view_set_context(app->view_game, app);
     view_set_custom_callback(app->view_game, blackhat_view_game_custom_event_callback);
-    view_allocate_model(app->view_game, ViewModelTypeLockFree, sizeof(SkeletonGameModel));
-    SkeletonGameModel* model = view_get_model(app->view_game);
+    view_allocate_model(app->view_game, ViewModelTypeLockFree, sizeof(BlackhatGameModel));
+    BlackhatGameModel* model = view_get_model(app->view_game);
     model->setting_1_index = setting_1_index;
     model->setting[SSID] = setting_2_ssid;
     model->setting[PASS] = setting_3_pass;
     model->x = 0;
 
-    view_dispatcher_add_view(app->view_dispatcher, SkeletonViewGame, app->view_game);
+    view_dispatcher_add_view(app->view_dispatcher, BlackhatViewGame, app->view_game);
 
     app->widget_about = widget_alloc();
     widget_add_text_scroll_element(
@@ -495,7 +495,7 @@ static SkeletonApp* blackhat_app_alloc() {
     view_set_previous_callback(
         widget_get_view(app->widget_about), blackhat_navigation_submenu_callback);
     view_dispatcher_add_view(
-        app->view_dispatcher, SkeletonViewAbout, widget_get_view(app->widget_about));
+        app->view_dispatcher, BlackhatViewAbout, widget_get_view(app->widget_about));
 
     app->notifications = furi_record_open(RECORD_NOTIFICATION);
 
@@ -511,22 +511,22 @@ static SkeletonApp* blackhat_app_alloc() {
  * @details    This function frees the blackhat application resources.
  * @param      app  The blackhat application object.
 */
-static void blackhat_app_free(SkeletonApp* app) {
+static void blackhat_app_free(BlackhatApp* app) {
 #ifdef BACKLIGHT_ON
     notification_message(app->notifications, &sequence_display_backlight_enforce_auto);
 #endif
     furi_record_close(RECORD_NOTIFICATION);
 
-    view_dispatcher_remove_view(app->view_dispatcher, SkeletonViewTextInput);
+    view_dispatcher_remove_view(app->view_dispatcher, BlackhatViewTextInput);
     text_input_free(app->text_input);
     free(app->temp_buffer);
-    view_dispatcher_remove_view(app->view_dispatcher, SkeletonViewAbout);
+    view_dispatcher_remove_view(app->view_dispatcher, BlackhatViewAbout);
     widget_free(app->widget_about);
-    view_dispatcher_remove_view(app->view_dispatcher, SkeletonViewGame);
+    view_dispatcher_remove_view(app->view_dispatcher, BlackhatViewGame);
     view_free(app->view_game);
-    view_dispatcher_remove_view(app->view_dispatcher, SkeletonViewConfigure);
+    view_dispatcher_remove_view(app->view_dispatcher, BlackhatViewConfigure);
     variable_item_list_free(app->variable_item_list_config);
-    view_dispatcher_remove_view(app->view_dispatcher, SkeletonViewSubmenu);
+    view_dispatcher_remove_view(app->view_dispatcher, BlackhatViewSubmenu);
     submenu_free(app->submenu);
     view_dispatcher_free(app->view_dispatcher);
     furi_record_close(RECORD_GUI);
@@ -544,7 +544,7 @@ static void blackhat_app_free(SkeletonApp* app) {
 int32_t main_blackhat_app(void* _p) {
     UNUSED(_p);
 
-    SkeletonApp* app = blackhat_app_alloc();
+    BlackhatApp* app = blackhat_app_alloc();
     view_dispatcher_run(app->view_dispatcher);
 
     blackhat_app_free(app);
