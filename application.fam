@@ -1,8 +1,8 @@
 App(
-    appid="skeleton_app",
+    appid="blackhat_app",
     name="[WIP] Skeleton Sample App",
     apptype=FlipperAppType.EXTERNAL,
-    entry_point="main_skeleton_app",
+    entry_point="main_blackhat_app",
     stack_size=4 * 1024,
     requires=[
         "gui",
