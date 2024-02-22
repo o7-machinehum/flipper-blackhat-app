@@ -48,15 +48,22 @@ typedef struct {
     Widget* widget_about; // The about screen
 
     VariableItem* setting_2_item; // The name setting item (so we can update the text)
+    VariableItem* setting_3_item; 
     char* temp_buffer; // Temporary buffer for text input
     uint32_t temp_buffer_size; // Size of temporary buffer
 
     FuriTimer* timer; // Timer for redrawing the screen
 } SkeletonApp;
 
+enum {
+	SSID = 0,
+	PASS,
+	ENUM_LEN,
+};
+
 typedef struct {
     uint32_t setting_1_index; // The team color setting index
-    FuriString* setting_2_name; // The name setting
+    FuriString* setting[ENUM_LEN]; // The name setting
     uint8_t x; // The x coordinate
 } SkeletonGameModel;
 
@@ -119,9 +126,7 @@ static void blackhat_submenu_callback(void* context, uint32_t index) {
     }
 }
 
-/**
- * Our 1st sample setting is a team color.  We have 3 options: red, green, and blue.
-*/
+// Enable or disable the 5V line (Required for the Blackhat)
 static const char* setting_1_config_label = "5V Enable";
 static uint8_t setting_1_values[] = {1, 2};
 static char* setting_1_names[] = {"OFF", "ON"};
@@ -134,14 +139,9 @@ static void blackhat_setting_1_change(VariableItem* item) {
     model->setting_1_index = index;
 }
 
-/**
- * Our 2nd sample setting is a text field.  When the user clicks OK on the configuration 
- * setting we use a text input screen to allow the user to enter a name.  This function is
- * called when the user clicks OK on the text input screen.
-*/
-static const char* setting_2_config_label = "Name";
-static const char* setting_2_entry_text = "Enter name";
-static const char* setting_2_default_value = "Bob";
+static const char* setting_2_config_label = "Target SSID";
+static const char* setting_2_entry_text = "Enter SSID";
+static const char* setting_2_default_value = "TunaWiFi";
 static void blackhat_setting_2_text_updated(void* context) {
     SkeletonApp* app = (SkeletonApp*)context;
     bool redraw = true;
@@ -149,9 +149,27 @@ static void blackhat_setting_2_text_updated(void* context) {
         app->view_game,
         SkeletonGameModel * model,
         {
-            furi_string_set(model->setting_2_name, app->temp_buffer);
+            furi_string_set(model->setting[SSID], app->temp_buffer);
             variable_item_set_current_value_text(
-                app->setting_2_item, furi_string_get_cstr(model->setting_2_name));
+                app->setting_2_item, furi_string_get_cstr(model->setting[SSID]));
+        },
+        redraw);
+    view_dispatcher_switch_to_view(app->view_dispatcher, SkeletonViewConfigure);
+}
+
+static const char* setting_3_config_label = "Target SSID PW";
+static const char* setting_3_entry_text = "Enter SSID PW";
+static const char* setting_3_default_value = "password1234";
+static void blackhat_setting_3_text_updated(void* context) {
+    SkeletonApp* app = (SkeletonApp*)context;
+    bool redraw = true;
+    with_view_model(
+        app->view_game,
+        SkeletonGameModel * model,
+        {
+            furi_string_set(model->setting[PASS], app->temp_buffer);
+            variable_item_set_current_value_text(
+                app->setting_3_item, furi_string_get_cstr(model->setting[PASS]));
         },
         redraw);
     view_dispatcher_switch_to_view(app->view_dispatcher, SkeletonViewConfigure);
@@ -166,12 +184,15 @@ static void blackhat_setting_2_text_updated(void* context) {
 */
 static void blackhat_setting_item_clicked(void* context, uint32_t index) {
     SkeletonApp* app = (SkeletonApp*)context;
-    index++; // The index starts at zero, but we want to start at 1.
 
     // Our configuration UI has the 2nd item as a text field.
-    if(index == 2) {
+    if(index == 1 || index == 2) {
+	index--;
         // Header to display on the text input screen.
-        text_input_set_header_text(app->text_input, setting_2_entry_text);
+    	if(index == 0)
+        	text_input_set_header_text(app->text_input, setting_2_entry_text);
+		else
+        	text_input_set_header_text(app->text_input, setting_3_entry_text);
 
         // Copy the current name into the temporary buffer.
         bool redraw = false;
@@ -181,20 +202,30 @@ static void blackhat_setting_item_clicked(void* context, uint32_t index) {
             {
                 strncpy(
                     app->temp_buffer,
-                    furi_string_get_cstr(model->setting_2_name),
+                    furi_string_get_cstr(model->setting[index]),
                     app->temp_buffer_size);
             },
             redraw);
 
         // Configure the text input.  When user enters text and clicks OK, blackhat_setting_text_updated be called.
         bool clear_previous_text = false;
-        text_input_set_result_callback(
-            app->text_input,
-            blackhat_setting_2_text_updated,
-            app,
-            app->temp_buffer,
-            app->temp_buffer_size,
-            clear_previous_text);
+		if(index == 0) {
+        	text_input_set_result_callback(
+        	    app->text_input,
+        	    blackhat_setting_2_text_updated,
+        	    app,
+        	    app->temp_buffer,
+        	    app->temp_buffer_size,
+        	    clear_previous_text);
+		} else {
+        	text_input_set_result_callback(
+        	    app->text_input,
+        	    blackhat_setting_3_text_updated,
+        	    app,
+        	    app->temp_buffer,
+        	    app->temp_buffer_size,
+        	    clear_previous_text);
+		}
 
         // Pressing the BACK button will reload the configure screen.
         view_set_previous_callback(
@@ -226,7 +257,7 @@ static void blackhat_view_game_draw_callback(Canvas* canvas, void* model) {
         setting_1_names[my_model->setting_1_index],
         setting_1_values[my_model->setting_1_index]);
     canvas_draw_str(canvas, 44, 48, furi_string_get_cstr(xstr));
-    furi_string_printf(xstr, "name: %s", furi_string_get_cstr(my_model->setting_2_name));
+    furi_string_printf(xstr, "name: %s", furi_string_get_cstr(my_model->setting[1]));
     canvas_draw_str(canvas, 44, 60, furi_string_get_cstr(xstr));
     furi_string_free(xstr);
 }
@@ -373,10 +404,10 @@ static SkeletonApp* blackhat_app_alloc() {
         app->submenu, "Config", SkeletonSubmenuIndexConfigure, blackhat_submenu_callback, app);
 
     submenu_add_item(
-        app->submenu, "Play", SkeletonSubmenuIndexGame, blackhat_submenu_callback, app);
+        app->submenu, "Run Evil Twin", SkeletonSubmenuIndexGame, blackhat_submenu_callback, app);
 
     submenu_add_item(
-        app->submenu, "About", SkeletonSubmenuIndexAbout, blackhat_submenu_callback, app);
+         app->submenu, "Run Evil Portal", SkeletonSubmenuIndexAbout, blackhat_submenu_callback, app);
 
     view_set_previous_callback(submenu_get_view(app->submenu), blackhat_navigation_exit_callback);
 
@@ -406,14 +437,24 @@ static SkeletonApp* blackhat_app_alloc() {
     variable_item_set_current_value_index(item, setting_1_index);
     variable_item_set_current_value_text(item, setting_1_names[setting_1_index]);
 
-    FuriString* setting_2_name = furi_string_alloc();
-    furi_string_set_str(setting_2_name, setting_2_default_value);
+    FuriString* setting_2_ssid = furi_string_alloc();
+    furi_string_set_str(setting_2_ssid, setting_2_default_value);
+
+    FuriString* setting_3_pass = furi_string_alloc();
+    furi_string_set_str(setting_3_pass, setting_3_default_value);
 
     app->setting_2_item = variable_item_list_add(
         app->variable_item_list_config, setting_2_config_label, 1, NULL, NULL);
 
+    app->setting_3_item = variable_item_list_add(
+        app->variable_item_list_config, setting_3_config_label, 1, NULL, NULL);
+
     variable_item_set_current_value_text(
-        app->setting_2_item, furi_string_get_cstr(setting_2_name));
+        app->setting_2_item, furi_string_get_cstr(setting_2_ssid));
+
+    variable_item_set_current_value_text(
+        app->setting_3_item, furi_string_get_cstr(setting_3_pass));
+
     variable_item_list_set_enter_callback(
         app->variable_item_list_config, blackhat_setting_item_clicked, app);
 
@@ -437,7 +478,8 @@ static SkeletonApp* blackhat_app_alloc() {
     view_allocate_model(app->view_game, ViewModelTypeLockFree, sizeof(SkeletonGameModel));
     SkeletonGameModel* model = view_get_model(app->view_game);
     model->setting_1_index = setting_1_index;
-    model->setting_2_name = setting_2_name;
+    model->setting[SSID] = setting_2_ssid;
+    model->setting[PASS] = setting_3_pass;
     model->x = 0;
 
     view_dispatcher_add_view(app->view_dispatcher, SkeletonViewGame, app->view_game);
