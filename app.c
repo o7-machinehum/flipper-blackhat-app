@@ -10,7 +10,9 @@
 #include <gui/modules/variable_item_list.h>
 #include <notification/notification.h>
 #include <notification/notification_messages.h>
+
 #include "blackhat_app_icons.h"
+#include "usb_uart_bridge.h"
 
 #define TAG "Blackhat"
 
@@ -38,6 +40,15 @@ typedef enum {
     BlackhatEventIdOkPressed = 42, // Custom event to process OK button getting pressed down
 } BlackhatEventId;
 
+
+typedef void (*GpioUsbUartCallback)(void* context);
+typedef struct GpioUsbUart GpioUsbUart;
+
+struct GpioUsbUart {
+    GpioUsbUartCallback callback;
+    void* context;
+};
+
 typedef struct {
     ViewDispatcher* view_dispatcher; // Switches between our views
     NotificationApp* notifications; // Used for controlling the backlight
@@ -53,6 +64,10 @@ typedef struct {
     uint32_t temp_buffer_size; // Size of temporary buffer
 
     FuriTimer* timer; // Timer for redrawing the screen
+	UsbUartBridge* usb_uart_bridge;
+
+    GpioUsbUart* gpio_usb_uart;
+
 } BlackhatApp;
 
 enum {
@@ -384,6 +399,25 @@ static bool blackhat_view_game_input_callback(InputEvent* event, void* context) 
     return false;
 }
 
+#define ENABLE_UART
+#ifdef ENABLE_UART
+
+typedef struct {
+    UsbUartConfig cfg;
+    UsbUartState state;
+} SceneUsbUartBridge;
+
+static SceneUsbUartBridge* scene_usb_uart;
+
+void gpio_scene_usb_uart_callback(void* context) {
+    furi_assert(context);
+	UNUSED(context);
+    // GpioApp* app = context;
+    // view_dispatcher_send_custom_event(app->view_dispatcher, event);
+}
+
+#endif
+
 /**
  * @brief      Allocate the blackhat application.
  * @details    This function allocates the blackhat application resources.
@@ -499,6 +533,24 @@ static BlackhatApp* blackhat_app_alloc() {
 
     app->notifications = furi_record_open(RECORD_NOTIFICATION);
 
+#ifdef ENABLE_UART
+	app->gpio_usb_uart = malloc(sizeof(GpioUsbUart));
+    scene_usb_uart = malloc(sizeof(SceneUsbUartBridge));
+    scene_usb_uart->cfg.vcp_ch = 1;
+    scene_usb_uart->cfg.uart_ch = 0;
+    scene_usb_uart->cfg.flow_pins = 0;
+    scene_usb_uart->cfg.baudrate_mode = 1;
+    scene_usb_uart->cfg.baudrate = 8;
+    app->usb_uart_bridge = usb_uart_enable(&scene_usb_uart->cfg);
+
+    usb_uart_get_config(app->usb_uart_bridge, &scene_usb_uart->cfg);
+    usb_uart_get_state(app->usb_uart_bridge, &scene_usb_uart->state);
+
+    // gpio_usb_uart_set_callback(app->gpio_usb_uart, gpio_scene_usb_uart_callback, app);
+	// app->gpio_usb_uart->callback = gpio_scene_usb_uart_callback;
+    // app->gpio_usb_uart->context = app;
+#endif
+
 #ifdef BACKLIGHT_ON
     notification_message(app->notifications, &sequence_display_backlight_enforce_on);
 #endif
@@ -516,6 +568,7 @@ static void blackhat_app_free(BlackhatApp* app) {
     notification_message(app->notifications, &sequence_display_backlight_enforce_auto);
 #endif
     furi_record_close(RECORD_NOTIFICATION);
+    usb_uart_disable(app->usb_uart_bridge);
 
     view_dispatcher_remove_view(app->view_dispatcher, BlackhatViewTextInput);
     text_input_free(app->text_input);

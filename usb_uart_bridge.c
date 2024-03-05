@@ -416,3 +416,8 @@ void usb_uart_get_state(UsbUartBridge* usb_uart, UsbUartState* st) {
     furi_assert(st);
     memcpy(st, &(usb_uart->st), sizeof(UsbUartState));
 }
+
+
+// void usb_uart_send(UsbUartBridge* usb_uart, void* data, size_t len) {
+// 
+// }
