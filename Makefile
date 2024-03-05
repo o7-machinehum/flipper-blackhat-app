@@ -1,6 +1,1 @@
-all:
-	ufbt
-deploy:
-	ufbt launch
-clean:
-	rm -rf dist
+all : ufbt deploy : ufbt launch clean : rm - rf dist

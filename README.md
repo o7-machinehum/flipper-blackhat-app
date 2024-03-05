@@ -1,4 +1,4 @@
-# skeleton_app
+#skeleton_app
 You can use this application as a starting point for creating your own application.  It contains the skeleton framework to get an application running on the Flipper Zero.
 
 Please let me know any feedback! 
