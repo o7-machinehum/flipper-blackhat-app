@@ -124,7 +124,7 @@ static uint32_t blackhat_navigation_configure_callback(void* _context) {
  * @param      context  The context - BlackhatApp object.
  * @param      index     The BlackhatSubmenuIndex item that was clicked.
 */
-static void blackhat_submenu_callback(void* context, uint32_t index) {
+__attribute__((unused)) static void blackhat_submenu_callback(void* context, uint32_t index) {
     BlackhatApp* app = (BlackhatApp*)context;
     switch(index) {
     case BlackhatSubmenuIndexConfigure:
@@ -251,154 +251,6 @@ static void blackhat_setting_item_clicked(void* context, uint32_t index) {
     }
 }
 
-/**
- * @brief      Callback for drawing the game screen.
- * @details    This function is called when the screen needs to be redrawn, like when the model gets updated.
- * @param      canvas  The canvas to draw on.
- * @param      model   The model - MyModel object.
-*/
-static void blackhat_view_game_draw_callback(Canvas* canvas, void* model) {
-    BlackhatGameModel* my_model = (BlackhatGameModel*)model;
-    canvas_draw_icon(canvas, my_model->x, 20, &I_glyph_1_14x40);
-    canvas_draw_str(canvas, 1, 10, "LEFT/RIGHT to change x");
-    FuriString* xstr = furi_string_alloc();
-    furi_string_printf(xstr, "x: %u  OK=play tone", my_model->x);
-    canvas_draw_str(canvas, 44, 24, furi_string_get_cstr(xstr));
-    furi_string_printf(xstr, "random: %u", (uint8_t)(furi_hal_random_get() % 256));
-    canvas_draw_str(canvas, 44, 36, furi_string_get_cstr(xstr));
-    furi_string_printf(
-        xstr,
-        "team: %s (%u)",
-        setting_1_names[my_model->setting_1_index],
-        setting_1_values[my_model->setting_1_index]);
-    canvas_draw_str(canvas, 44, 48, furi_string_get_cstr(xstr));
-    furi_string_printf(xstr, "name: %s", furi_string_get_cstr(my_model->setting[1]));
-    canvas_draw_str(canvas, 44, 60, furi_string_get_cstr(xstr));
-    furi_string_free(xstr);
-}
-
-/**
- * @brief      Callback for timer elapsed.
- * @details    This function is called when the timer is elapsed.  We use this to queue a redraw event.
- * @param      context  The context - BlackhatApp object.
-*/
-static void blackhat_view_game_timer_callback(void* context) {
-    BlackhatApp* app = (BlackhatApp*)context;
-    view_dispatcher_send_custom_event(app->view_dispatcher, BlackhatEventIdRedrawScreen);
-}
-
-/**
- * @brief      Callback when the user starts the game screen.
- * @details    This function is called when the user enters the game screen.  We start a timer to
- *           redraw the screen periodically (so the random number is refreshed).
- * @param      context  The context - BlackhatApp object.
-*/
-static void blackhat_view_game_enter_callback(void* context) {
-    uint32_t period = furi_ms_to_ticks(200);
-    BlackhatApp* app = (BlackhatApp*)context;
-    furi_assert(app->timer == NULL);
-    app->timer =
-        furi_timer_alloc(blackhat_view_game_timer_callback, FuriTimerTypePeriodic, context);
-    furi_timer_start(app->timer, period);
-}
-
-/**
- * @brief      Callback when the user exits the game screen.
- * @details    This function is called when the user exits the game screen.  We stop the timer.
- * @param      context  The context - BlackhatApp object.
-*/
-static void blackhat_view_game_exit_callback(void* context) {
-    BlackhatApp* app = (BlackhatApp*)context;
-    furi_timer_stop(app->timer);
-    furi_timer_free(app->timer);
-    app->timer = NULL;
-}
-
-/**
- * @brief      Callback for custom events.
- * @details    This function is called when a custom event is sent to the view dispatcher.
- * @param      event    The event id - BlackhatEventId value.
- * @param      context  The context - BlackhatApp object.
-*/
-static bool blackhat_view_game_custom_event_callback(uint32_t event, void* context) {
-    BlackhatApp* app = (BlackhatApp*)context;
-    switch(event) {
-    case BlackhatEventIdRedrawScreen:
-        // Redraw screen by passing true to last parameter of with_view_model.
-        {
-            bool redraw = true;
-            with_view_model(
-                app->view_game, BlackhatGameModel * _model, { UNUSED(_model); }, redraw);
-            return true;
-        }
-    case BlackhatEventIdOkPressed:
-        // Process the OK button.  We play a tone based on the x coordinate.
-        if(furi_hal_speaker_acquire(500)) {
-            float frequency;
-            bool redraw = false;
-            with_view_model(
-                app->view_game,
-                BlackhatGameModel * model,
-                { frequency = model->x * 100 + 100; },
-                redraw);
-            furi_hal_speaker_start(frequency, 1.0);
-            furi_delay_ms(100);
-            furi_hal_speaker_stop();
-            furi_hal_speaker_release();
-        }
-        return true;
-    default:
-        return false;
-    }
-}
-
-/**
- * @brief      Callback for game screen input.
- * @details    This function is called when the user presses a button while on the game screen.
- * @param      event    The event - InputEvent object.
- * @param      context  The context - BlackhatApp object.
- * @return     true if the event was handled, false otherwise.
-*/
-static bool blackhat_view_game_input_callback(InputEvent* event, void* context) {
-    BlackhatApp* app = (BlackhatApp*)context;
-    if(event->type == InputTypeShort) {
-        if(event->key == InputKeyLeft) {
-            // Left button clicked, reduce x coordinate.
-            bool redraw = true;
-            with_view_model(
-                app->view_game,
-                BlackhatGameModel * model,
-                {
-                    if(model->x > 0) {
-                        model->x--;
-                    }
-                },
-                redraw);
-        } else if(event->key == InputKeyRight) {
-            // Right button clicked, increase x coordinate.
-            bool redraw = true;
-            with_view_model(
-                app->view_game,
-                BlackhatGameModel * model,
-                {
-                    // Should we have some maximum value?
-                    model->x++;
-                },
-                redraw);
-        }
-    } else if(event->type == InputTypePress) {
-        if(event->key == InputKeyOk) {
-            // We choose to send a custom event when user presses OK button.  blackhat_custom_event_callback will
-            // handle our BlackhatEventIdOkPressed event.  We could have just put the code from
-            // blackhat_custom_event_callback here, it's a matter of preference.
-            view_dispatcher_send_custom_event(app->view_dispatcher, BlackhatEventIdOkPressed);
-            return true;
-        }
-    }
-
-    return false;
-}
-
 #define ENABLE_UART
 #ifdef ENABLE_UART
 
@@ -502,13 +354,8 @@ static BlackhatApp* blackhat_app_alloc() {
         variable_item_list_get_view(app->variable_item_list_config));
 
     app->view_game = view_alloc();
-    view_set_draw_callback(app->view_game, blackhat_view_game_draw_callback);
-    view_set_input_callback(app->view_game, blackhat_view_game_input_callback);
     view_set_previous_callback(app->view_game, blackhat_navigation_submenu_callback);
-    view_set_enter_callback(app->view_game, blackhat_view_game_enter_callback);
-    view_set_exit_callback(app->view_game, blackhat_view_game_exit_callback);
     view_set_context(app->view_game, app);
-    view_set_custom_callback(app->view_game, blackhat_view_game_custom_event_callback);
     view_allocate_model(app->view_game, ViewModelTypeLockFree, sizeof(BlackhatGameModel));
     BlackhatGameModel* model = view_get_model(app->view_game);
     model->setting_1_index = setting_1_index;
