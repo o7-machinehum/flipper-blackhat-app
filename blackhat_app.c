@@ -78,6 +78,9 @@ BlackhatApp* blackhat_app_alloc()
     );
 
     app->tui_view = view_alloc();
+    view_allocate_model(
+        app->tui_view, ViewModelTypeLockFree, sizeof(bool)
+    );
     view_dispatcher_add_view(
         app->view_dispatcher, BlackhatAppViewTui, app->tui_view
     );
@@ -129,6 +132,7 @@ void blackhat_app_free(BlackhatApp* app)
     view_dispatcher_remove_view(app->view_dispatcher, BlackhatAppViewTextInput);
     text_input_free(app->text_input);
     view_dispatcher_remove_view(app->view_dispatcher, BlackhatAppViewTui);
+    view_free_model(app->tui_view);
     view_free(app->tui_view);
     view_dispatcher_remove_view(
         app->view_dispatcher, BlackhatAppViewConsoleOutput
