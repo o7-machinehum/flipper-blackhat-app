@@ -1,6 +1,7 @@
 #include <expansion/expansion.h>
 #include <furi.h>
 #include <furi_hal.h>
+#include <power/power_service/power.h>
 
 #include "blackhat_app_i.h"
 
@@ -165,15 +166,11 @@ int32_t blackhat_app(void* p)
     BlackhatApp* blackhat_app = blackhat_app_alloc();
     blackhat_app->scanned = false;
 
-    bool otg_was_enabled = furi_hal_power_is_otg_enabled();
-    // turn off 5v, so it gets reset on startup
-    if (otg_was_enabled) {
-        furi_hal_power_disable_otg();
-    }
-    uint8_t attempts = 0;
-    while (!furi_hal_power_is_otg_enabled() && attempts++ < 5) {
-        furi_hal_power_enable_otg();
-        furi_delay_ms(10);
+    Power* power = furi_record_open(RECORD_POWER);
+    // Preserve the service request even when USB temporarily prevents OTG output.
+    bool otg_was_requested = power_is_otg_enabled(power);
+    if (!otg_was_requested) {
+        power_enable_otg(power, true);
     }
     furi_delay_ms(200);
 
@@ -181,9 +178,10 @@ int32_t blackhat_app(void* p)
     view_dispatcher_run(blackhat_app->view_dispatcher);
     blackhat_app_free(blackhat_app);
 
-    if (furi_hal_power_is_otg_enabled() && !otg_was_enabled) {
-        furi_hal_power_disable_otg();
+    if (!otg_was_requested) {
+        power_enable_otg(power, false);
     }
+    furi_record_close(RECORD_POWER);
 
     // Return previous state of expansion
     expansion_enable(expansion);
